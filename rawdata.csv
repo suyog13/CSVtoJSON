@@ -1,0 +1,3 @@
+name.firstName, name.lastName, age, address.line1, address.line2, address.city, address.state, gender,location.map1.lattitude,location.map1.longitude
+Rohit, Prasad, 35, A-563 Rakshak Society, New Pune Road, Pune, Maharashtra, male,19.889,72.876
+Test, User, 25, 563 Test Society, New Test Road, Mumbai, Maharashtra, female,19.119,72.111
