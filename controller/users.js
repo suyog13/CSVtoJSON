@@ -1,7 +1,8 @@
 const model = require('../config/seqConfig')
 const users = model.users
-const sequelize = require('sequelize');
+const sequelize = model.sequelize;
 var fs = require('fs');
+
 const dotenv = require('dotenv');
 dotenv.config();
 
@@ -10,7 +11,7 @@ module.exports = {
 bulkUploadUsers(req,res) {
     try{
         //Reading CSV file
-        fs.readFile(process.env.FILE_PATH,"utf-8",function(err,data){
+        fs.readFile(process.env.FILE_PATH,"utf-8",async function(err,data){
             if(err){
                 res.status(400).send({"status":"Failure","message":"Something went wrong!","error":err.message})
             }
@@ -23,7 +24,7 @@ bulkUploadUsers(req,res) {
                 keyArray.push(element.trim())
             })
 
-            //Creating JSON Object
+            //Creating JSON Object as per document
             
             let jsonArray = [];
             csvData.forEach(element=>{
@@ -38,7 +39,9 @@ bulkUploadUsers(req,res) {
                 })
                 jsonArray.push(object);
             })
-            
+
+
+            //Creating object to store in database
             jsonArray.forEach(async dataRow => {
                 let additional_value = {};
                 for(let key of Object.keys(dataRow)){
@@ -54,13 +57,29 @@ bulkUploadUsers(req,res) {
                     "address":dataRow.address,
                     "additional_info":additional_value
                 }
-                console.log(data)
+                 //Save records in Database
                 await users.create(data).catch(err=>{
                     console.log(err.message)
                     res.status(200).send({"status":"Failed","message":"Something went wrong!","error":err.message})
                 })
             })
-            res.status(200).send({"status":"Success","message":"Success!","data":jsonArray})
+
+            //Custom query to get Age Distribution
+            const counts = await sequelize.query(`select 
+                (undertwenty/total::float)*100 Under_20,
+                (twentytoforty/total::float)*100 Twenty_to_Fourty,
+                (fourtytosixty/total::float)*100 Fourty_to_sixty,
+                (abovesixty/total::float)*100 Above_20
+            from (
+             SELECT count(*) total,
+                     SUM(CASE WHEN age < 20 THEN 1 ELSE 0 END) AS undertwenty,
+                    SUM(CASE WHEN age BETWEEN 20 AND 40 THEN 1 ELSE 0 END) AS twentytoforty,
+                    SUM(CASE WHEN age BETWEEN 40 AND 60 THEN 1 ELSE 0 END) AS fourtytosixty,
+                    SUM(CASE WHEN age >60 THEN 1 ELSE 0 END) AS abovesixty
+             FROM users
+             ) x;`)
+            console.log(counts[0][0]) //TO print on console the Age distribution result
+            res.status(200).send({"status":"Success","message":"Success!","data":counts[0][0]})
         })
         } catch (error) {
             res.status(200).send({"status":"Failed","message":"Something went wrong!","error":error.message})
